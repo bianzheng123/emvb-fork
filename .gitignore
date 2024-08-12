@@ -1,0 +1,8 @@
+*tsv
+build/
+build/*
+.vscode/
+.vscode/*
+/cmake-build-debug/
+index/
+.idea/
