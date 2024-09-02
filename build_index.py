@@ -8,6 +8,7 @@ import time
 # from faiss.contrib.inspect_tools import get_invlist
 from faiss.contrib import inspect_tools
 
+
 # from run_inference import *
 
 def get_invlist(invlists, l):
@@ -40,6 +41,7 @@ def get_invlist(invlists, l):
             invlists.release_codes(l, codes)
     return list_ids, list_codes
 
+
 username = 'bianzheng'
 dataset = 'lotte-500-gnd'
 
@@ -57,6 +59,9 @@ quantizer = faiss.IndexFlatL2(d)
 
 index = faiss.IndexIVFPQ(quantizer, d, n_centroid, m, nbits)
 index.train(training_set)
+index.add(training_set)
+arr = [index.invlists.list_size(i) for i in range(n_centroid)]
+print("list size ", arr)
 
 save_index_path = f"./index/{dataset}.index"
 faiss.write_index(index, save_index_path)
