@@ -4,9 +4,9 @@ project(EMVB)
 
 enable_testing()
 
-if(NOT DEFINED CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-endif()
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 20)
+endif ()
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
@@ -23,38 +23,45 @@ find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
 include_directories(include)
 
-# Set compiler options
-#if(NOT MSVC)
-##  set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native -mavx512f  -funroll-loops -fopenmp -g ${CMAKE_C_FLAGS}")
-#  set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native -mavx512f -mavx512vl -mavx512bw -funroll-loops -fopenmp -g ${CMAKE_C_FLAGS}")
-#
-#
-#else()
-#  include("${CMAKE_CURRENT_LIST_DIR}/msvc_simd_isa.cmake")
-#  if(SUPPORT_MSVC_AVX512)
-#    set(MSVC_SIMD_FLAGS "/arch:AVX512")
-#  elseif(SUPPORT_MSVC_AVX2)
-#    set(MSVC_SIMD_FLAGS "/arch:AVX2")
-#  elseif(SUPPORT_MSVC_AVX)
-#    set(MSVC_SIMD_FLAGS "/arch:AVX")
-#  else()
-#    set(MSVC_SIMD_FLAGS "")
-#  endif()
-#  set(CMAKE_C_FLAGS "/O2 /fp:fast ${MSVC_SIMD_FLAGS} ${CMAKE_C_FLAGS}")
-#endif()
-#
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -Wall -Wextra -Wno-missing-braces")
+set(USE_AVX512 OFF)
+
+if (USE_AVX512)
+    add_definitions(-DUSE_AVX512)
+
+    # Set compiler options
+    if (NOT MSVC)
+        #  set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native -mavx512f  -funroll-loops -fopenmp -g ${CMAKE_C_FLAGS}")
+        set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native -mavx512f -mavx512vl -mavx512bw -funroll-loops -fopenmp -g ${CMAKE_C_FLAGS}")
+
+    else ()
+        include("${CMAKE_CURRENT_LIST_DIR}/msvc_simd_isa.cmake")
+        if (SUPPORT_MSVC_AVX512)
+            set(MSVC_SIMD_FLAGS "/arch:AVX512")
+        elseif (SUPPORT_MSVC_AVX2)
+            set(MSVC_SIMD_FLAGS "/arch:AVX2")
+        elseif (SUPPORT_MSVC_AVX)
+            set(MSVC_SIMD_FLAGS "/arch:AVX")
+        else ()
+            set(MSVC_SIMD_FLAGS "")
+        endif ()
+        set(CMAKE_C_FLAGS "/O2 /fp:fast ${MSVC_SIMD_FLAGS} ${CMAKE_C_FLAGS}")
+    endif ()
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -Wall -Wextra -Wno-missing-braces")
+
+endif ()
+
 
 # Set Windows stack size as on Linux: 2MB on 32-bit, 8MB on 64-bit
 if (WIN32)
-  math(EXPR stack_size "${CMAKE_SIZEOF_VOID_P}*${CMAKE_SIZEOF_VOID_P}*128*1024")
-  if (MSVC)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:${stack_size}")
-  else()
-    # compiling with clang + lld
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Xlinker /stack:${stack_size}")
-  endif()
-endif()
+    math(EXPR stack_size "${CMAKE_SIZEOF_VOID_P}*${CMAKE_SIZEOF_VOID_P}*128*1024")
+    if (MSVC)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:${stack_size}")
+    else ()
+        # compiling with clang + lld
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Xlinker /stack:${stack_size}")
+    endif ()
+endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}")
 

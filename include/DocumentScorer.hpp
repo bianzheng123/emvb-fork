@@ -5,15 +5,19 @@
 #include <fstream>
 #include <algorithm>
 #include <tuple>
-#include "utils.cpp"
+#include "utils.hpp"
 #include <random>
 #include <cstring>
 #include "ProductQuantizerX.hpp"
 #include <unordered_set>
 #include "mkl.h"
-//#include <immintrin.h>
 #include <filesystem>
 #include "Heap.hpp"
+
+#ifdef USE_AVX512
+#include <immintrin.h>
+#endif
+
 
 using namespace std;
 using namespace cnpy;
@@ -90,11 +94,13 @@ public:
         numVectorsType offset = 0;
         for (numDocsType i = 0; i < n_docs; i++) {
             int len = all_doclens[i];
+            printf("i %d, len %d\n", i, len);
             for (numVectorsType j = offset; j < offset + len; j++) {
                 emb2pid[j] = i;
             }
             offset = offset + len;
         }
+        printf("finish assign\n");
         emb2pid.shrink_to_fit();
         // build doc_offsets vector
         doc_offsets.resize(n_docs);
@@ -146,28 +152,30 @@ public:
         return current_scores;
     }
 
-//    size_t *filter_if_avx512(const float th, const size_t i) {
-//
-//        size_t *sorted_indexes = start_sorted;
-//        __m512 broad_th = _mm512_set1_ps(th);
-//        __m512 current_values;
-//        size_t idx = 0;
-//        for (size_t j = 0; j < n_centroids; j += 16) {
-//            // load unaligned at the moment.
-//            current_values = _mm512_loadu_ps((const void *) &(centroids_scores[i * n_centroids + j]));
-//            __mmask16 mask = _mm512_cmp_ps_mask(current_values, broad_th, _CMP_GT_OS);
-//            if (mask != (uint16_t) 0) {
-//
-//                for (size_t bit = 0; bit < 16; bit++) {
-//                    if ((mask >> bit) & (uint16_t) 1) {
-//                        sorted_indexes[idx] = j + bit;
-//                        idx++;
-//                    }
-//                }
-//            }
-//        }
-//        return sorted_indexes + idx;
-//    }
+#ifdef USE_AVX512
+    size_t *filter_if_avx512(const float th, const size_t i) {
+
+        size_t *sorted_indexes = start_sorted;
+        __m512 broad_th = _mm512_set1_ps(th);
+        __m512 current_values;
+        size_t idx = 0;
+        for (size_t j = 0; j < n_centroids; j += 16) {
+            // load unaligned at the moment.
+            current_values = _mm512_loadu_ps((const void *) &(centroids_scores[i * n_centroids + j]));
+            __mmask16 mask = _mm512_cmp_ps_mask(current_values, broad_th, _CMP_GT_OS);
+            if (mask != (uint16_t) 0) {
+
+                for (size_t bit = 0; bit < 16; bit++) {
+                    if ((mask >> bit) & (uint16_t) 1) {
+                        sorted_indexes[idx] = j + bit;
+                        idx++;
+                    }
+                }
+            }
+        }
+        return sorted_indexes + idx;
+    }
+#else
 
     size_t *filter_if_avx512(const float th, const size_t i) {
 //        printf("before filter if\n");
@@ -185,6 +193,8 @@ public:
 //        printf("after filter if\n");
         return sorted_indexes + idx;
     }
+
+#endif
 
 
     vector<numDocsType>
@@ -343,27 +353,31 @@ public:
                       M /* dst_stride */);
     }
 
-//    inline float
-//    compute_score_by_column_reduction(const vector<float> &centroid_distances, const size_t doclen, const size_t M) {
-//
-//        __m512 maxs0 = _mm512_loadu_ps((const void *) &centroid_distances[0]);
-//        __m512 maxs1 = _mm512_loadu_ps((const void *) &centroid_distances[16]);
-//
-//        for (size_t i = 1; i < doclen; i++) {
-//            __m512 current0 = _mm512_loadu_ps((const void *) &centroid_distances[i * M]);
-//            __m512 current1 = _mm512_loadu_ps((const void *) &centroid_distances[i * M + 16]);
-//
-//            __mmask16 m0 = _mm512_cmp_ps_mask(current0, maxs0, _CMP_GT_OS);
-//            __mmask16 m1 = _mm512_cmp_ps_mask(current1, maxs1, _CMP_GT_OS);
-//
-//            maxs0 = _mm512_mask_blend_ps(m0, maxs0, current0);
-//            maxs1 = _mm512_mask_blend_ps(m1, maxs1, current1);
-//        }
-//        __m512 half_sum = _mm512_add_ps(maxs0, maxs1);
-//
-//
-//        return _mm512_reduce_add_ps(half_sum);
-//    }
+#ifdef USE_AVX512
+
+    inline float
+    compute_score_by_column_reduction(const vector<float> &centroid_distances, const size_t doclen, const size_t M) {
+
+        __m512 maxs0 = _mm512_loadu_ps((const void *) &centroid_distances[0]);
+        __m512 maxs1 = _mm512_loadu_ps((const void *) &centroid_distances[16]);
+
+        for (size_t i = 1; i < doclen; i++) {
+            __m512 current0 = _mm512_loadu_ps((const void *) &centroid_distances[i * M]);
+            __m512 current1 = _mm512_loadu_ps((const void *) &centroid_distances[i * M + 16]);
+
+            __mmask16 m0 = _mm512_cmp_ps_mask(current0, maxs0, _CMP_GT_OS);
+            __mmask16 m1 = _mm512_cmp_ps_mask(current1, maxs1, _CMP_GT_OS);
+
+            maxs0 = _mm512_mask_blend_ps(m0, maxs0, current0);
+            maxs1 = _mm512_mask_blend_ps(m1, maxs1, current1);
+        }
+        __m512 half_sum = _mm512_add_ps(maxs0, maxs1);
+
+
+        return _mm512_reduce_add_ps(half_sum);
+    }
+
+#else
 
     inline float compute_score_by_column_reduction(const std::vector<float> &centroid_distances, const size_t doclen,
                                                    const size_t M) {
@@ -386,6 +400,8 @@ public:
 //        printf("after compute_score_by_column_reduction\n");
         return sum;
     }
+
+#endif
 
     vector<numDocsType>
     second_stage_filtering(const float *queries_data, const globalIdxType q_start, const vector<numDocsType> &doc_ids,
@@ -532,36 +548,38 @@ public:
         return result;
     }
 
-//    inline int *filter_centroids_in_scoring(const float th, const float *current_centroid_scores, const size_t doclen) {
-//        __m512i ids = _mm512_loadu_epi32((const void *) GLOBAL_INDEXES);
-//        const __m512i SHIFT = _mm512_set1_epi32(16);
-//        __m512 broad_th = _mm512_set1_ps(th);
-//        __m512 current_values;
-//        int *current_buffer = this->buffer_centroids;
-//
-//        size_t avx_cycle_lenth = (doclen / 16) * 16;
-//
-//        for (size_t j = 0; j < avx_cycle_lenth; j += 16) {
-//            // load unaligned at the moment.
-//            current_values = _mm512_loadu_ps((const void *) &current_centroid_scores[j]);
-//            __mmask16 mask = _mm512_cmp_ps_mask(current_values, broad_th, _CMP_GT_OS);
-//            _mm512_mask_compressstoreu_epi32((void *) current_buffer, mask, ids);
-//            auto added_len = popcount(mask);
-//            current_buffer += added_len;
-//            ids = _mm512_add_epi32(ids, SHIFT);
-//        }
-//
-//        for (size_t j = avx_cycle_lenth; j < doclen; j++) {
-//            *current_buffer = j;
-//            current_buffer += (size_t) (current_centroid_scores[j] > th);
-//        }
-//
-//        return current_buffer;
-//    }
-
+#ifdef USE_AVX512
 
     inline int *filter_centroids_in_scoring(const float th, const float *current_centroid_scores, const size_t doclen) {
-        //        printf("before filter_centroids_in_scoring\n");
+        __m512i ids = _mm512_loadu_epi32((const void *) GLOBAL_INDEXES);
+        const __m512i SHIFT = _mm512_set1_epi32(16);
+        __m512 broad_th = _mm512_set1_ps(th);
+        __m512 current_values;
+        int *current_buffer = this->buffer_centroids;
+
+        size_t avx_cycle_lenth = (doclen / 16) * 16;
+
+        for (size_t j = 0; j < avx_cycle_lenth; j += 16) {
+            // load unaligned at the moment.
+            current_values = _mm512_loadu_ps((const void *) &current_centroid_scores[j]);
+            __mmask16 mask = _mm512_cmp_ps_mask(current_values, broad_th, _CMP_GT_OS);
+            _mm512_mask_compressstoreu_epi32((void *) current_buffer, mask, ids);
+            auto added_len = popcount(mask);
+            current_buffer += added_len;
+            ids = _mm512_add_epi32(ids, SHIFT);
+        }
+
+        for (size_t j = avx_cycle_lenth; j < doclen; j++) {
+            *current_buffer = j;
+            current_buffer += (size_t) (current_centroid_scores[j] > th);
+        }
+
+        return current_buffer;
+    }
+
+#else
+
+    inline int *filter_centroids_in_scoring(const float th, const float *current_centroid_scores, const size_t doclen) {
         int *current_buffer = this->buffer_centroids;
 
         // Process in chunks of 16
@@ -587,6 +605,8 @@ public:
         //        printf("after filter_centroids_in_scoring\n");
         return current_buffer;
     }
+
+#endif
 
     vector<tuple<size_t, float>> compute_topk_documents_selected(const float *queries_data, const globalIdxType q_start,
                                                                  const vector<numDocsType> &doc_ids, const size_t k,
