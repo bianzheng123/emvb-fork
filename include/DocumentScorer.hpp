@@ -94,13 +94,11 @@ public:
         numVectorsType offset = 0;
         for (numDocsType i = 0; i < n_docs; i++) {
             int len = all_doclens[i];
-            printf("i %d, len %d\n", i, len);
             for (numVectorsType j = offset; j < offset + len; j++) {
                 emb2pid[j] = i;
             }
             offset = offset + len;
         }
-        printf("finish assign\n");
         emb2pid.shrink_to_fit();
         // build doc_offsets vector
         doc_offsets.resize(n_docs);

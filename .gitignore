@@ -6,3 +6,4 @@ build/*
 /cmake-build-debug/
 index/
 .idea/
+*.pyc

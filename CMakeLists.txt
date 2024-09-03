@@ -23,7 +23,16 @@ find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
 
 include_directories(include)
 
-set(USE_AVX512 OFF)
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    message("${Green}Release mode${ColourReset}")
+    set(USE_AVX512 ON)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message("${Green}Debug mode${ColourReset}")
+    set(USE_AVX512 OFF)
+else ()
+    message("${Green}Unknown mode${ColourReset}")
+    set(USE_AVX512 OFF)
+endif ()
 
 if (USE_AVX512)
     add_definitions(-DUSE_AVX512)
