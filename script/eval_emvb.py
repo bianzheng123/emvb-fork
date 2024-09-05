@@ -106,7 +106,7 @@ if __name__ == '__main__':
     config_l = {
         'dbg': {
             'username': 'zhengbian',
-            'dataset_l': ['lotte'],
+            'dataset_l': ['lotte-500-gnd'],
             'topk_l': [10],
             'is_debug': False,
             'build_index_parameter_l': [
@@ -174,7 +174,7 @@ if __name__ == '__main__':
             }
         }
     }
-    host_name = 'local'
+    host_name = 'dbg'
     config = config_l[host_name]
 
     username = config['username']

@@ -173,10 +173,15 @@ def build_index(username: str, dataset: str, n_centroid: int, pq_n_partition: in
     sample_vecs_l, sample_item_n_vec_l = sample_vector(username=username, dataset=dataset)
     print("start faiss build PQ centroid")
     res = faiss.StandardGpuResources()  # use a single GPU
+    print("1")
     quantizer = faiss.IndexFlatL2(vec_dim)
+    print("2")
     index = faiss.IndexIVFPQ(quantizer, vec_dim, n_centroid, pq_n_partition, pq_n_bit_per_partition)
+    print("3")
     index = faiss.index_cpu_to_gpu(res, 0, index)
+    print("4")
     index.verbose = True
+    print("5")
     index.train(sample_vecs_l)
     print("end faiss build PQ centroid")
 
