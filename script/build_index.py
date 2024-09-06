@@ -139,9 +139,6 @@ def build_index(username: str, dataset: str, n_centroid: int, pq_n_partition: in
             np.load(f'/home/{username}/Dataset/vector-set-similarity-search/Embedding/{dataset}/doclens.npy').astype(
                 np.int32))
 
-    np.save(os.path.join(index_path, "query_embeddings.npy"),
-            np.load(f'/home/{username}/Dataset/vector-set-similarity-search/Embedding/{dataset}/query_embedding.npy'))
-
     # n_query = np.load(f'/home/{username}/Dataset/vector-set-similarity-search/Embedding/{dataset}/query_embedding.npy').shape[0]
     # qID_l = np.arange(n_query)
     # np.savetxt(os.path.join(index_path, "qID_l.txt"), qID_l, fmt='%d')
@@ -164,6 +161,9 @@ def build_index(username: str, dataset: str, n_centroid: int, pq_n_partition: in
         assert pq_n_bit_per_partition == 8
         return {'n_centroid': n_centroid, 'pq_n_partition': pq_n_partition,
                 "pq_n_bit_per_partition": pq_n_bit_per_partition}
+
+    np.save(os.path.join(index_path, "query_embeddings.npy"),
+            np.load(f'/home/{username}/Dataset/vector-set-similarity-search/Embedding/{dataset}/query_embedding.npy'))
 
     # sample the training set
     item_l_path = os.path.join(embedding_path, 'base_embedding', 'encoding0_float32.npy')
