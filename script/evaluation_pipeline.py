@@ -88,7 +88,8 @@ def approximate_solution_retrieval_outter(username: str, dataset: str,
         retrieval_info_m = {'n_query': len(queryID_l), 'topk': topk,
                             'build_index': build_index_config, 'retrieval': retrieval_config,
                             'search_time': search_time_m, 'search_accuracy': search_accuracy_m}
-        del retrieval_info_m['build_index']['n_centroid_f']
+        if 'n_centroid_f' in retrieval_info_m['build_index']:
+            del retrieval_info_m['build_index']['n_centroid_f']
         method_performance_name = f'{dataset}-retrieval-{method_name}-top{topk}-{build_index_suffix}-{retrieval_suffix}.json'
         result_performance_path = f'/home/{username}/Dataset/vector-set-similarity-search/Result/performance'
         performance_filename = os.path.join(result_performance_path, method_performance_name)
